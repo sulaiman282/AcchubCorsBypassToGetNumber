@@ -27,6 +27,7 @@ export default function RootLayout({
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
       >
         <Script src="/ethereum-fix.js" strategy="beforeInteractive" />
         {children}

@@ -2,15 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    // Get the form data from the request
     const formData = await request.formData();
     
-    // Extract parameters from the request
     const country = formData.get('country');
     const carrier = formData.get('carrier');
     const authKey = formData.get('authKey');
     
-    // Validate required parameters
     if (!country) {
       return NextResponse.json(
         { error: 'Country is required' },
@@ -18,69 +15,53 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Create a new FormData object to send to the target API
     const targetFormData = new FormData();
     targetFormData.append('app', country as string);
     if (carrier) {
       targetFormData.append('carrier', carrier as string);
     }
     
-    // Make the request to the target API
-    const response = await fetch('https://raazit.acchub.io/api/getNumber/', {
+    const response = await fetch('https://raazit.acchub.io/api/sms/', {
       method: 'POST',
       headers: {
-        'Accept': 'application/json, text/javascript, */*; q=0.01',
-        'Accept-Language': 'en-US,en;q=0.9,bn;q=0.8',
-        'Connection': 'keep-alive',
+        'Accept': 'application/json',
         'Origin': 'https://raazit.acchub.io',
         'Referer': 'https://raazit.acchub.io/',
-        'Sec-Fetch-Dest': 'empty',
-        'Sec-Fetch-Mode': 'cors',
-        'Sec-Fetch-Site': 'same-origin',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
         'X-Requested-With': 'XMLHttpRequest',
-        'auth-token': authKey as string,
-        'sec-ch-ua': '"Chromium";v="134", "Not:A-Brand";v="24", "Google Chrome";v="134"',
-        'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"Windows"'
+        'auth-token': authKey as string
       },
       body: targetFormData,
-      // Include cookies in the request
-      credentials: 'include',
+      credentials: 'include'
     });
     
-    // Check if the response is JSON
-    const contentType = response.headers.get('content-type');
-    let data;
-    
-    // Clone the response before consuming it
-    const responseClone = response.clone();
-    
-    // Get the response as text first
     const textResponse = await response.text();
-    console.log('Raw response content:', textResponse);
+    let data: Record<string, unknown>;
     
     try {
-      // Try to parse as JSON if content type indicates JSON
-      if (contentType && contentType.includes('application/json')) {
-        try {
-          data = JSON.parse(textResponse);
-        } catch (jsonError) {
-          console.error('Error parsing JSON:', jsonError);
-          data = { error: 'Invalid JSON format', message: textResponse };
-        }
+      const parsedData = JSON.parse(textResponse);
+      
+      if (parsedData.meta === 200 && parsedData.data?.did) {
+        const phoneNumber = parsedData.data.did;
+        const plusNumber = phoneNumber.startsWith('+') ? phoneNumber.substring(1) : phoneNumber;
+        
+        const nationalMatch = (country as string).match(/-([\d]+)$/);
+        const nationalNumber = nationalMatch?.[1] 
+          ? plusNumber.substring(nationalMatch[1].length)
+          : '';
+        
+        data = {
+          full: phoneNumber,
+          plus: plusNumber,
+          national: nationalNumber
+        };
       } else {
-        // If not JSON, use the text response
-        console.log('Response is not JSON:', textResponse);
-        data = { message: textResponse };
+        data = parsedData;
       }
     } catch (parseError) {
-      // Handle any other parsing errors
       console.error('Error processing response:', parseError);
       data = { error: 'Failed to process response', message: textResponse };
     }
     
-    // Return the response from the target API
     return NextResponse.json(data, {
       status: response.status,
       headers: {
@@ -99,7 +80,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Handle OPTIONS requests for CORS preflight
 export async function OPTIONS() {
   return NextResponse.json(
     {},
