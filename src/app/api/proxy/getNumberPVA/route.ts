@@ -42,12 +42,9 @@ export async function POST(request: NextRequest) {
       if (parsedData.meta === 200 && parsedData.data?.did) {
         const phoneNumber = parsedData.data.did;
         const plusNumber = phoneNumber.startsWith('+') ? phoneNumber.substring(1) : phoneNumber;
-        
-        const nationalMatch = (country as string).match(/-([\d]+)$/);
-        const nationalNumber = nationalMatch?.[1] 
-          ? plusNumber.substring(nationalMatch[1].length)
-          : '';
-        
+        const code = formData.get('code');
+        const nationalNumber = (typeof code === 'string' && code.length) ? plusNumber.substring(code.length) : plusNumber;
+            
         data = {
           full: phoneNumber,
           plus: plusNumber,
